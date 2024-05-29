@@ -2,7 +2,7 @@
 // Sender Script
 require 'vendor/autoload.php';
 
-$redis = new Predis\Client();
+$redis = new Predis\Client('127.0.0.1:6379');
 
 while (true) {
     $message = readline("Enter message (or 'exit' to quit): ");

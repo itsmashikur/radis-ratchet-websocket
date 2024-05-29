@@ -10,21 +10,32 @@ use Clue\React\Redis\Factory as RedisFactory;
 use React\EventLoop\Loop;
 use React\Socket\Server as SocketServer;
 
-
 require 'vendor/autoload.php';
 
 class WebSocketServer implements MessageComponentInterface
 {
     protected $clients;
     protected $redis;
-    protected $pubSubChannelName = 'message'; 
+    protected $predis;
+    protected $host;
+    protected $port;
+    protected $channel;
 
     public function __construct($loop)
     {
+        $this->channel = 'messages';
+
+        $this->host = '127.0.0.1';
+
+        $this->port = 6379;
+
         $this->clients = new \SplObjectStorage();
 
-        // set redis PubSub loop
-        $this->registerRedisPubSubLoop($loop);
+        $this->redis = new Clue\React\Redis\RedisClient("{$this->host}:{$this->port}");
+
+        $this->predis = new Predis\Client("{$this->host}:{$this->port}");
+
+        $this->channelSubscribe($loop);
     }
 
     public function onOpen(ConnectionInterface $conn)
@@ -39,7 +50,9 @@ class WebSocketServer implements MessageComponentInterface
 
     public function onMessage(ConnectionInterface $from, $msg)
     {
-        // Handle incoming messages here
+        //on message send to redis
+        $this->channelPublish($msg);
+        echo "Message {$from->resourceId} says: {$msg}" . PHP_EOL;
     }
 
     public function onClose(ConnectionInterface $conn)
@@ -54,44 +67,44 @@ class WebSocketServer implements MessageComponentInterface
         $conn->close();
     }
 
-    public function registerRedisPubSubLoop($loop)
+    public function channelSubscribe($loop)
     {
-        $channel = 'messages';
-        
-        $redis = new Clue\React\Redis\RedisClient('localhost:6379');
-        
-        $redis->subscribe($channel)->then(function () {
-        
-            echo 'Now subscribed to channel ' . PHP_EOL;
-        
-        }, function (Exception $e) use ($redis) {
-        
-            $redis->close();
-            
-            echo 'Unable to subscribe: ' . $e->getMessage() . PHP_EOL;
-        });
-        
+        $redis = $this->redis;
+
+        $redis->subscribe($this->channel)->then(
+            function () {
+                echo "Subscribed to channel : {$this->channel}" . PHP_EOL;
+            },
+            function (Exception $e) use ($redis) {
+                $redis->close();
+
+                echo 'Unable to subscribe: ' . $e->getMessage() . PHP_EOL;
+            },
+        );
+
         $redis->on('message', function (string $channel, string $message) {
-            
             echo 'Message on test' . $channel . ': ' . $message . PHP_EOL;
 
             foreach ($this->clients as $client) {
                 $client->send($message);
             }
-
-
         });
-        
+    }
+
+    public function channelPublish($msg)
+    {
+        $this->predis->publish($this->channel, $msg);
     }
 }
+
+$port = readline('Enter port: ');
 
 $loop = EventLoopFactory::create();
 
 $webSocket = new WebSocketServer($loop);
 
-$socketServer = new SocketServer('0.0.0.0:8080', $loop);
+$socketServer = new SocketServer('0.0.0.0:' . $port, $loop);
 
 $ioServer = new IoServer(new HttpServer(new WsServer($webSocket)), $socketServer, $loop);
 
 $loop->run();
-

@@ -9,10 +9,15 @@
     <h1>WebSocket Client</h1>
     <p id="message"></p>
 
-    <script>
+    <!-- Input form for sending messages -->
+    <form id="messageForm">
+        <input type="text" id="messageInput" placeholder="Enter your message">
+        <button type="submit">Send</button>
+    </form>
 
+    <script>
         // Create a new WebSocket connection
-        const socket = new WebSocket('ws://localhost:8080');
+        const socket = new WebSocket('ws://localhost:8081');
 
         // Connection opened
         socket.addEventListener('open', function (event) {
@@ -37,7 +42,20 @@
         socket.addEventListener('error', function (event) {
             console.error('WebSocket error observed:', event);
         });
-        
+
+        // Handle form submission
+        const form = document.getElementById('messageForm');
+        form.addEventListener('submit', function (event) {
+            event.preventDefault(); // Prevent the form from submitting the traditional way
+            const input = document.getElementById('messageInput');
+            const message = input.value;
+
+            // Send the message through the WebSocket
+            socket.send(message);
+
+            // Clear the input field
+            input.value = '';
+        });
     </script>
 </body>
 </html>
