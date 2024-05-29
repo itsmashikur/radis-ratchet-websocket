@@ -1,0 +1,9 @@
+{
+    "require": {
+        "cboden/ratchet": "^0.4.4",
+        "predis/predis": "^2.2",
+        "react/event-loop": "^1.5",
+        "react/socket": "^1.15",
+        "clue/redis-react": "^3@dev || ^2"
+    }
+}
